@@ -16,11 +16,9 @@ provider "azurerm" {
     }
   }
 
+  # Nonaktifkan registrasi otomatis Resource Provider
+  skip_provider_registration = true
+
   # Kredensial dibaca dari environment variable atau Azure CLI login
   # Jalankan: az login
-  # Atau set environment variable:
-  #   ARM_SUBSCRIPTION_ID
-  #   ARM_CLIENT_ID
-  #   ARM_CLIENT_SECRET
-  #   ARM_TENANT_ID
 }
