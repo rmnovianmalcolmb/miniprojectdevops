@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TiketKonser - War Tiket</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      min-height: 100vh;
+      color: white;
+    }
+    header {
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(10px);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    header h1 { font-size: 1.5rem; color: #a78bfa; }
+    .hero {
+      text-align: center;
+      padding: 4rem 2rem 2rem;
+    }
+    .hero h2 { font-size: 3rem; margin-bottom: 1rem; }
+    .hero p { font-size: 1.2rem; color: #c4b5fd; margin-bottom: 2rem; }
+    .countdown {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      margin-bottom: 3rem;
+    }
+    .countdown-box {
+      background: rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 1rem 1.5rem;
+      min-width: 80px;
+      text-align: center;
+    }
+    .countdown-box span { font-size: 2.5rem; font-weight: bold; color: #a78bfa; }
+    .countdown-box p { font-size: 0.75rem; color: #c4b5fd; margin-top: 0.25rem; }
+    .tickets {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    .ticket-card {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(167,139,250,0.3);
+      border-radius: 16px;
+      padding: 1.5rem;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .ticket-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 30px rgba(167,139,250,0.3);
+    }
+    .ticket-card h3 { font-size: 1.3rem; margin-bottom: 0.5rem; }
+    .ticket-card .price {
+      font-size: 1.8rem;
+      font-weight: bold;
+      color: #a78bfa;
+      margin: 0.5rem 0;
+    }
+    .ticket-card p { color: #c4b5fd; font-size: 0.9rem; margin-bottom: 1rem; }
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 99px;
+      font-size: 0.75rem;
+      font-weight: bold;
+      margin-bottom: 1rem;
+    }
+    .badge.vip { background: #7c3aed; }
+    .badge.regular { background: #1d4ed8; }
+    .badge.festival { background: #065f46; }
+    .btn {
+      width: 100%;
+      padding: 0.75rem;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      color: white;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .status { text-align: center; padding: 1rem; color: #a78bfa; font-size: 0.9rem; }
+    #api-status {
+      max-width: 400px;
+      margin: 0 auto 2rem;
+      padding: 0.75rem;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.05);
+      text-align: center;
+      font-size: 0.9rem;
+    }
+    footer {
+      text-align: center;
+      padding: 2rem;
+      color: #6b7280;
+      font-size: 0.85rem;
+      margin-top: 2rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🎵 TiketKonser</h1>
+  <span id="server-info">Served by: —</span>
+</header>
+
+<div class="hero">
+  <h2>🎤 COLDPLAY World Tour 2025</h2>
+  <p>Jakarta • Gelora Bung Karno • 15 Agustus 2025</p>
+
+  <div class="countdown" id="countdown">
+    <div class="countdown-box"><span id="days">00</span><p>Hari</p></div>
+    <div class="countdown-box"><span id="hours">00</span><p>Jam</p></div>
+    <div class="countdown-box"><span id="minutes">00</span><p>Menit</p></div>
+    <div class="countdown-box"><span id="seconds">00</span><p>Detik</p></div>
+  </div>
+
+  <div id="api-status">🔄 Mengecek status backend...</div>
+</div>
+
+<div class="tickets">
+  <div class="ticket-card">
+    <span class="badge vip">VIP</span>
+    <h3>VIP Diamond</h3>
+    <div class="price">Rp 4.500.000</div>
+    <p>Akses pit area, meet & greet, merchandise eksklusif, dan fast track entry.</p>
+    <button class="btn" onclick="beli('VIP Diamond')">Beli Sekarang</button>
+  </div>
+  <div class="ticket-card">
+    <span class="badge regular">REGULER</span>
+    <h3>CAT 1 - Tribune</h3>
+    <div class="price">Rp 2.000.000</div>
+    <p>Kursi tribune utama dengan pandangan panggung terbaik. Termasuk e-voucher parkir.</p>
+    <button class="btn" onclick="beli('CAT 1 Tribune')">Beli Sekarang</button>
+  </div>
+  <div class="ticket-card">
+    <span class="badge festival">FESTIVAL</span>
+    <h3>Festival Standing</h3>
+    <div class="price">Rp 950.000</div>
+    <p>Area berdiri penuh energi. Nikmati konser dari dekat bersama ribuan penonton lain.</p>
+    <button class="btn" onclick="beli('Festival Standing')">Beli Sekarang</button>
+  </div>
+</div>
+
+<div class="status" id="ticket-status"></div>
+
+<footer>
+  <p>🚀 Infrastruktur ditenagai oleh Docker · Terraform · Ansible · Nginx LB</p>
+  <p style="margin-top:0.5rem">Mini Project DevOps — High Availability Concert Ticketing System</p>
+</footer>
+
+<script>
+  // Countdown timer ke tanggal konser
+  const eventDate = new Date('2025-08-15T10:00:00');
+  function updateCountdown() {
+    const now = new Date();
+    const diff = eventDate - now;
+    if (diff <= 0) {
+      document.getElementById('countdown').innerHTML = '<p style="color:#a78bfa;font-size:1.5rem">🎉 Konser Sudah Dimulai!</p>';
+      return;
+    }
+    document.getElementById('days').textContent    = String(Math.floor(diff/86400000)).padStart(2,'0');
+    document.getElementById('hours').textContent   = String(Math.floor((diff%86400000)/3600000)).padStart(2,'0');
+    document.getElementById('minutes').textContent = String(Math.floor((diff%3600000)/60000)).padStart(2,'0');
+    document.getElementById('seconds').textContent = String(Math.floor((diff%60000)/1000)).padStart(2,'0');
+  }
+  setInterval(updateCountdown, 1000);
+  updateCountdown();
+
+  // Cek backend health (akan connect ke backend via LB)
+  async function checkBackend() {
+    try {
+      const res = await fetch('/api/health');
+      const data = await res.json();
+      document.getElementById('api-status').innerHTML =
+        `✅ Backend OK — <strong>${data.message || 'Service running'}</strong>`;
+      document.getElementById('api-status').style.color = '#86efac';
+    } catch {
+      document.getElementById('api-status').innerHTML = '⚠️ Backend belum terhubung (normal saat dev lokal)';
+      document.getElementById('api-status').style.color = '#fbbf24';
+    }
+  }
+  checkBackend();
+
+  // Tampilkan hostname container
+  document.getElementById('server-info').textContent =
+    'Served by: ' + (window.location.hostname || 'localhost');
+
+  function beli(kategori) {
+    document.getElementById('ticket-status').textContent =
+      `⏳ Memproses pembelian ${kategori}... Harap tunggu.`;
+    setTimeout(() => {
+      document.getElementById('ticket-status').textContent =
+        `✅ Tiket ${kategori} berhasil dipesan! Cek email kamu.`;
+    }, 1500);
+  }
+</script>
+
+</body>
+</html>
