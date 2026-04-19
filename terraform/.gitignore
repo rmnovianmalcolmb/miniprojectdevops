@@ -1,0 +1,37 @@
+# Terraform state files — JANGAN PERNAH di-commit ke git!
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Terraform working directory
+.terraform/
+.terraform.lock.hcl
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Crash log
+crash.log
+crash.*.log
+
+# Sensitive variable files — jangan commit file yang berisi secret/password
+*.auto.tfvars
+terraform.tfvars.local
+
+# Plan files
+*.tfplan
+
+# IDE
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Azure credentials — JANGAN COMMIT!
+*.pem
+*.key
+id_rsa
+id_rsa.pub
