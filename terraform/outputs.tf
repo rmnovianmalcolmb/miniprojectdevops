@@ -69,3 +69,33 @@ output "networking_summary" {
     location            = azurerm_resource_group.main.location
   }
 }
+
+# ============================================================
+# OUTPUTS VM — Anggota 4
+# IP address semua VM — dibutuhkan Anggota 5 untuk Ansible inventory
+# ============================================================
+
+output "lb_public_ip" {
+  description = "IP publik VM Load Balancer — satu-satunya entry point dari internet"
+  value       = azurerm_public_ip.lb.ip_address
+}
+
+output "frontend_private_ips" {
+  description = "IP private 2 VM Frontend Worker (akses via LB jump host)"
+  value       = azurerm_network_interface.frontend[*].private_ip_address
+}
+
+output "backend_private_ips" {
+  description = "IP private 2 VM Backend Worker (akses via LB jump host)"
+  value       = azurerm_network_interface.backend[*].private_ip_address
+}
+
+output "vm_summary" {
+  description = "Ringkasan semua IP — berikan ke Anggota 5 untuk Ansible inventory"
+  value = {
+    lb_public_ip         = azurerm_public_ip.lb.ip_address
+    frontend_private_ips = azurerm_network_interface.frontend[*].private_ip_address
+    backend_private_ips  = azurerm_network_interface.backend[*].private_ip_address
+    ssh_note             = "Worker VMs hanya punya private IP. SSH via: ssh -J azureuser@<lb_public_ip> azureuser@<worker_private_ip>"
+  }
+}

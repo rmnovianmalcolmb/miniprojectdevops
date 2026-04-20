@@ -43,6 +43,24 @@ variable "admin_source_ip" {
   # Contoh: "203.0.113.10/32"
 }
 
+# ── VM Config (dipakai Anggota 4) ──────────────────────────────
+variable "admin_username" {
+  description = "Username admin untuk semua VM"
+  type        = string
+  default     = "azureuser"
+}
+
+variable "admin_ssh_public_key" {
+  description = "SSH public key untuk autentikasi ke semua VM"
+  type        = string
+}
+
+variable "vm_size" {
+  description = "Ukuran VM Azure (default Standard_B1s = paling murah)"
+  type        = string
+  default     = "Standard_B1s"
+}
+
 # ── Tags ─────────────────────────────────────────────────────
 variable "tags" {
   description = "Tags yang diterapkan ke semua resource"
