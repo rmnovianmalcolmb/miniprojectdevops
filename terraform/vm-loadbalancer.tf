@@ -1,6 +1,6 @@
 # ============================================================
-# VM LOAD BALANCER — Anggota 4
-# 1 VM Nginx reverse proxy, satu-satunya VM yang punya public IP
+# VIRTUAL MACHINE - LOAD BALANCER
+# Provisioning VM untuk Nginx Load Balancer, satu-satunya VM yang punya public IP
 # ============================================================
 
 # ── Public IP untuk Load Balancer ────────────────────────────

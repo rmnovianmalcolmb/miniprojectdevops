@@ -1,5 +1,6 @@
 # ============================================================
-# VARIABLES — Anggota 3 (Networking)
+# VARIABLES
+# Konfigurasi Terraform yang bisa di-override
 # ============================================================
 
 # ── Lokasi & Nama Dasar ──────────────────────────────────────
@@ -43,7 +44,7 @@ variable "admin_source_ip" {
   # Contoh: "203.0.113.10/32"
 }
 
-# ── VM Config (dipakai Anggota 4) ──────────────────────────────
+# ── VM Config ──────────────────────────────
 variable "admin_username" {
   description = "Username admin untuk semua VM"
   type        = string
@@ -69,7 +70,7 @@ variable "tags" {
     Project     = "concert-ticketing-infra"
     Environment = "dev"
     ManagedBy   = "Terraform"
-    Owner       = "Anggota3-Networking"
+    Owner       = "DevOps-Team"
     Course      = "DevOps-MiniProject"
   }
 }
