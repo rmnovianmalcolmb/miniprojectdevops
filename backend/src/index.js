@@ -1,4 +1,5 @@
 const express = require("express");
+const os = require("os");
 
 const app = express();
 const PORT = 3000;
@@ -22,6 +23,7 @@ app.get("/api/health", (req, res) => {
   res.status(200).json({
     success: true,
     message: "Service is healthy",
+    hostname: os.hostname(),
     uptime: process.uptime(),
     timestamp: new Date()
   });
