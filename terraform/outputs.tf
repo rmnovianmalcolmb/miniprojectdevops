@@ -1,26 +1,25 @@
 # ============================================================
-# OUTPUTS — Anggota 3 (Networking)
-# Output kritis yang DIBUTUHKAN oleh Anggota 4 (Terraform VMs)
+# OUTPUTS (Networking)
+# Output kritis yang DIBUTUHKAN oleh Terraform VMs
 # ============================================================
 
-# ── Output untuk Anggota 4 ───────────────────────────────────
-# Anggota 4 akan menggunakan output ini dengan:
-#   data "terraform_remote_state" atau copy manual nilai setelah terraform apply
+# ── Output ───────────────────────────────────
+# Nilai yang diexpose:
 
 output "subnet_id" {
-  description = "ID subnet utama — dipakai Anggota 4 untuk attach NIC semua VM"
+  description = "ID subnet utama — dipakai untuk attach NIC semua VM"
   value       = azurerm_subnet.main.id
 }
 
 output "nsg_id" {
-  description = "ID Network Security Group — dipakai Anggota 4 untuk attach ke NIC VM"
+  description = "ID Network Security Group — dipakai untuk attach ke NIC VM"
   value       = azurerm_network_security_group.main.id
 }
 
 # ── Output Informatif ────────────────────────────────────────
 
 output "resource_group_name" {
-  description = "Nama Resource Group — dipakai semua anggota untuk deploy resource ke RG yang sama"
+  description = "Nama Resource Group — dipakai untuk deploy resource ke RG yang sama"
   value       = azurerm_resource_group.main.name
 }
 
@@ -59,9 +58,9 @@ output "nsg_name" {
   value       = azurerm_network_security_group.main.name
 }
 
-# ── Summary untuk Anggota 4 ──────────────────────────────────
+# ── Summary ──────────────────────────────────
 output "networking_summary" {
-  description = "Ringkasan nilai penting yang perlu dicopy ke konfigurasi Anggota 4"
+  description = "Ringkasan nilai penting yang perlu dicopy ke konfigurasi VM"
   value = {
     subnet_id           = azurerm_subnet.main.id
     nsg_id              = azurerm_network_security_group.main.id
@@ -71,8 +70,8 @@ output "networking_summary" {
 }
 
 # ============================================================
-# OUTPUTS VM — Anggota 4
-# IP address semua VM — dibutuhkan Anggota 5 untuk Ansible inventory
+# OUTPUTS
+# Data yang diexpose dari module Terraform VM — dibutuhkan untuk Ansible inventory
 # ============================================================
 
 output "lb_public_ip" {
