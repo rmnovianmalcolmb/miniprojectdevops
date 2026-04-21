@@ -19,6 +19,7 @@ crash.*.log
 
 # Sensitive variable files — jangan commit file yang berisi secret/password
 *.auto.tfvars
+terraform.tfvars
 terraform.tfvars.local
 
 # Plan files
