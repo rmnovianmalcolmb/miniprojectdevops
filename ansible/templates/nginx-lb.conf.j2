@@ -1,0 +1,40 @@
+upstream frontend_servers {
+    least_conn;
+{% for host in groups['workers'] %}
+    server {{ hostvars[host]['ansible_host'] }}:8080;
+{% endfor %}
+}
+
+upstream backend_servers {
+    least_conn;
+{% for host in groups['workers'] %}
+    server {{ hostvars[host]['ansible_host'] }}:3000;
+{% endfor %}
+}
+
+server {
+    listen 80;
+    server_name _;
+
+    # Frontend
+    location / {
+        proxy_pass http://frontend_servers;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # Backend API
+    location /api/ {
+        proxy_pass http://backend_servers;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # Health check endpoint for load testing
+    location /health {
+        proxy_pass http://frontend_servers;
+        proxy_set_header Host $host;
+    }
+}

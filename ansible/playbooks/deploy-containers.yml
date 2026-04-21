@@ -1,0 +1,67 @@
+---
+- name: Deploy Frontend & Backend Containers on Workers
+  hosts: workers
+  become: true
+
+  tasks:
+
+    # ── Clone repo ke worker ──────────────────────────────────
+    - name: Install git
+      apt:
+        name: git
+        state: present
+        update_cache: yes
+
+    - name: Clone project repository
+      git:
+        repo: https://github.com/rmnovianmalcolmb/miniprojectdevops.git
+        dest: /opt/miniprojectdevops
+        version: main
+        force: yes
+
+    # ── Build & Run Frontend ──────────────────────────────────
+    - name: Build frontend Docker image
+      community.docker.docker_image:
+        name: concert-frontend
+        tag: latest
+        source: build
+        build:
+          path: /opt/miniprojectdevops/frontend
+          target: production
+        state: present
+        force_source: yes
+
+    - name: Run frontend container
+      community.docker.docker_container:
+        name: frontend-app
+        image: concert-frontend:latest
+        state: started
+        restart_policy: always
+        ports:
+          - "8080:8080"
+        healthcheck:
+          test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+          interval: 30s
+          timeout: 5s
+          retries: 3
+          start_period: 10s
+
+    # ── Build & Run Backend ───────────────────────────────────
+    - name: Build backend Docker image
+      community.docker.docker_image:
+        name: concert-backend
+        tag: latest
+        source: build
+        build:
+          path: /opt/miniprojectdevops/backend
+        state: present
+        force_source: yes
+
+    - name: Run backend container
+      community.docker.docker_container:
+        name: backend-app
+        image: concert-backend:latest
+        state: started
+        restart_policy: always
+        ports:
+          - "3000:3000"
