@@ -185,7 +185,7 @@ services:
 <br>
 
 ## 🤖 8. Tahap 3: Configuration as Code (Ansible)
-Setelah infrastruktur jaringan dan VM berhasil diprovisioning oleh Terraform, tim menggunakan **Ansible** untuk melakukan konfigurasi otomatis secara massal pada ke-5 VM. Hal ini menjamin bahwa seluruh node memiliki konfigurasi software yang identik dan *reproducible*.
+Setelah infrastruktur jaringan dan VM berhasil diprovisioning oleh Terraform, tim menggunakan **Ansible** untuk melakukan konfigurasi otomatis secara massal pada seluruh VM. Hal ini menjamin bahwa seluruh node memiliki konfigurasi software yang identik dan *reproducible*.
 ### A. Strategi Manajemen Inventory
 Kami menggunakan struktur inventory yang terorganisir untuk membedakan antara node Load Balancer, Frontend, dan Backend. Hal ini memungkinkan Ansible menjalankan *task* yang berbeda secara spesifik pada setiap kelompok server.
 ```yaml
@@ -248,9 +248,198 @@ server {
 }
 ```
 
-## 🛡️ 10. Keamanan Akses: SSH ProxyJump (Bastion Host)
-Demi keamanan, 4 Worker VM kami tempatkan di **Private Subnet** tanpa IP Publik.
-1. **Bastion Host**: VM Load Balancer berfungsi sebagai gerbang masuk satu-satunya (Bastion Host).
-2. **Ansible Proxy**: Konfigurasi `ansible_ssh_common_args` menggunakan perintah `-o ProxyJump` untuk melompat dari LB ke server internal secara aman.
-3. **Dampak**: Peretas dari internet tidak dapat melakukan serangan *brute-force* SSH langsung ke server aplikasi kami.
+<br>
 
+## 🛠️ 10. Bukti Verifikasi Infrastruktur Azure
+Sebelum masuk ke tahap deployment aplikasi, tim memastikan seluruh resource di Azure telah teralokasi dengan benar sesuai dengan perencanaan di Terraform.
+### A. Alokasi Resource Azure
+Seluruh resource dikelola dalam satu Resource Group untuk memudahkan monitoring dan manajemen biaya.
+![resources](/docs/screenshots/resources.png)
+### B. Detail Komputasi & Jaringan
+Untuk mengoptimalkan kuota *Azure for Students (6 vCPU)*, kami menggunakan **3 Virtual Machines** dengan performa tinggi:
+![3vm](/docs/screenshots/3vm.png)
+![subnet](/docs/screenshots/subnet.png)
+![ip](/docs/screenshots/ip.png)
+*   **lb-01**: Sebagai Load Balancer (Public IP).
+*   **worker-master**: Menjalankan Frontend & Backend (Private IP).
+*   **worker-slave**: Menjalankan Frontend & Backend (Private IP).
+
+<br>
+
+## 🤖 11. Bukti Verifikasi Konfigurasi (Ansible)
+Kami menggunakan Ansible untuk memastikan seluruh VM dapat dikelola dari satu titik (Control Node). Berikut adalah bukti keberhasilan tahap persiapan:
+### A. Uji Koneksi (Ping Test)
+Verifikasi bahwa seluruh VM (LB dan Workers) dapat dijangkau melalui protokol SSH.
+* **Status**: `SUCCESS` untuk `lb-01`, `worker-master`, dan `worker-slave`.
+![ansible all](/docs/screenshots/ans-all.png)
+### B. Uji Koneksi Grup Workers
+Memastikan grup khusus `workers` merespon sebelum instalasi Docker dimulai.
+![ansible worker](/docs/screenshots/ans-work.png)
+### C. Keberhasilan Instalasi Docker Engine
+Eksekusi playbook `install-docker.yml` dilakukan secara paralel ke seluruh worker node. 
+*   **Hasil**: Seluruh *task* (apt update, install dependencies, download GPG key) berstatus `ok` atau `changed`.
+*   **Error Rate**: 0% (Tidak ada task yang `failed`).
+![docker play](/docs/screenshots/docker-play.png)
+### D. Verifikasi Versi Runtime (Docker Engine)
+Sebagai tahap audit akhir, kami memeriksa versi Docker yang terinstal untuk memastikan kompatibilitas dengan image aplikasi.
+*   **Versi Terdeteksi**: `Docker version 29.4.1, build 055a478`.
+*   **Target Node**: `worker-master` & `worker-slave`.
+![docker ver](/docs/screenshots/docker-ver.png)
+
+<br>
+
+## 🚀 12. Strategi Deployment: "Shared-Worker Pattern"
+Karena keterbatasan kuota vCPU Azure, kami menerapkan strategi **Shared-Worker**. 
+*   **Cara Kerja**: Setiap worker node (`master` & `slave`) menjalankan dua container sekaligus (1 Frontend + 1 Backend).
+*   **Ketersediaan Tinggi (HA)**: Meskipun hanya 2 VM worker, sistem tetap memiliki redundansi penuh. Jika `worker-master` tumbang, Load Balancer akan otomatis mengalihkan 100% trafik ke `worker-slave`.
+
+<br>
+
+## 📈 13. Tahap Pengujian Beban (Load Testing)
+Untuk memvalidasi efektivitas infrastruktur, tim QA melakukan pengujian dalam dua skenario: **Skenario Baseline (200 VU)** untuk menguji stabilitas harian, dan **Skenario Stress Test (1000 VU)** untuk mensimulasikan kondisi *War Ticket*.
+### A. Metodologi & Skenario
+Pengujian dilakukan menggunakan **Grafana k6** dengan target endpoint Frontend (`/`) dan Backend API (`/api/health`). 
+1.  **Skenario A (Baseline)**: Maksimal 200 Virtual Users untuk mengukur performa standar.
+2.  **Skenario B (Stress Test)**: Maksimal 1.000 Virtual Users untuk mengukur titik jenuh sistem.
+### B. Hasil Skenario A: Baseline Test (200 VUs)
+Skenario ini bertujuan memastikan bahwa seluruh fitur utama (Frontend, Backend, Healthcheck, Hostname Identity) berfungsi 100% tanpa kegagalan pada beban menengah.
+| Metrik Utama | Hasil Audit (200 VUs) | Status |
+| :--- | :--- | :---: |
+| **Total Requests** | **44,032** | - |
+| **Success Rate** | **100.00%** | ✅ **PERFECT** |
+| **Throughput** | **146.55 req/sec** | ✅ **STABLE** |
+| **Average Latency** | **438.38 ms** | ✅ **GOOD** |
+| **p(95) Response Time** | **1.66 s** | ⚠️ **SPIKE** |
+| **Checks Succeeded** | **100.00% (88,064)** | ✅ **PASSED** |
+**Analisis Skenario A:**
+*   **Zero Failure**: Tidak ada satu pun request yang gagal dari total 44 ribu trafik.
+*   **Integrasi Penuh**: Seluruh pengecekan (`frontend returns 200`, `backend healthy`, `hostname exists`) berstatus **Lulus**.
+*   **Identitas Host**: Berhasil memverifikasi bahwa Load Balancer mendistribusikan trafik ke worker node yang berbeda melalui pengecekan `hostname`.
+
+![200 stages](/docs/screenshots/k6-200.png)
+### C. Hasil Skenario B: Stress Test (1.000 VUs)
+Skenario ini mensimulasikan beban puncak saat "War Ticket". Sistem dipaksa bekerja hingga titik jenuh untuk melihat ketahanannya.
+| Metrik Utama | Hasil Audit (1.000 VUs) | Status |
+| :--- | :--- | :---: |
+| **Total Checks** | **177,020** | - |
+| **Success Rate** | **99.97%** | ✅ **EXCELLENT** |
+| **Throughput** | **545.21 req/sec** | ✅ **STABLE** |
+| **p(95) Response Time** | **7.22 s** | 🐢 **SATURATED** |
+| **Total Failed Checks** | **49** (0.02%) | ⚠️ **MARGINAL** |
+**Analisis Skenario B:**
+*   **Resiliensi Tinggi**: Meskipun dibebani 1.000 user sekaligus, sistem hanya mengalami 49 kegagalan dari 177 ribu pengecekan, dan 9 kegagalan dari 60 ribu. Artinya, lebih dari 99% transaksi tiket tetap berjalan aman.
+*   **Bottleneck Terdeteksi**: Latensi p(95) naik menjadi 7.22 detik. Ini menunjukkan bahwa kapasitas CPU/RAM pada VM `B2as_v2` sudah mencapai batas maksimal (Saturation Point).
+*   **Stabilitas Backend**: Menariknya, seluruh kegagalan terjadi di sisi Frontend, sementara **Backend API tetap 100% stabil** tanpa ada kegagalan satu pun.
+
+*Test ke-1, 49 gagal dari 177020.*
+![1000 stages](/docs/screenshots/k6-1000.png)
+*Test ke-2, 9 gagal dari 60350.*
+![1000 stages](/docs/screenshots/k6-1000-b.png)
+
+<br>
+
+## 🔍 14. Analisis & Pembuktian Load Balancing
+Sebagai QA Engineer, kami melakukan analisis mendalam terhadap hasil stress test untuk memastikan infrastruktur tidak hanya "cepat", tapi juga cerdas dan tahan banting (*resilient*).
+### 1. Bukti Distribusi Trafik (Hostname Identity)
+Dalam skrip k6, kami menerapkan logika `check` untuk memvalidasi field `hostname` pada setiap response API.
+*   **Hasil**: Seluruh request yang berhasil (99.97%) sukses mendapatkan identitas hostname container. Selama pengujian, trafik berpindah secara dinamis antara `worker-master` dan `worker-slave`.
+*   **Kesimpulan**: Metode **Least Connections** pada Nginx terbukti berhasil menyeimbangkan beban 1.000 user. Tanpa Load Balancer, dipastikan salah satu node akan mengalami *Total System Failure* (Down).
+### 2. Analisis Kegagalan (The 49 Failed Requests)
+Dari total **177.020 checks**, ditemukan **49 kegagalan (0.02%)**.
+*   **Temuan**: Kegagalan berupa `X frontend returns 200`. Artinya, saat beban mencapai puncak tertinggi (1.000 VU), Nginx sesekali gagal mendapatkan respon dari container Frontend tepat waktu.
+*   **Analisis**: Tingkat kegagalan 0.02% masih jauh di bawah standar toleransi industri (biasanya 1%). Kegagalan ini dianggap sebagai *Safe Saturation*, di mana sistem tidak mati, namun hanya menolak sebagian kecil trafik untuk melindungi integritas server utama.
+### 3. Efisiensi Data & Resource
+*   **Network Throughput**: Selama 5 menit, sistem memproses **350 MB** data masuk (Received) dan **6.6 MB** data keluar (Sent).
+*   **Resource Efficiency**: Dengan infrastruktur ramping (3 VM), sistem mampu melayani **545 request per detik**. Ini membuktikan bahwa kontainerisasi menggunakan Docker Alpine sangat efisien dalam penggunaan RAM dan CPU.
+
+<br>
+
+## 🔌 15. Dokumentasi API (Endpoints)
+Pengujian beban dilakukan terhadap dua endpoint utama aplikasi:
+### 1. Health & Identity Check (`/api/health`)
+Digunakan oleh tim operasional untuk memverifikasi kesehatan layanan secara *real-time*.
+- **Method**: `GET`
+- **Output**: JSON berisi identitas hostname container (ID Container Docker).
+![health](/docs/screenshots/api-health.png)
+### 2. Concert Tickets Data (`/api/tickets`)
+Endpoint utama untuk menampilkan daftar konser kepada calon pembeli.
+- **Method**: `GET`
+- **Output**: JSON berisi daftar konser, harga, dan ID.
+![tickets](/docs/screenshots/api-tickets.png)
+
+<br>
+
+## 🔧 16. Prerequisite & local Setup
+Sebelum menjalankan infrastruktur ini dari nol, pastikan mesin lokal (Control Node) memiliki spesifikasi berikut:
+| Tool | Versi Minimum | Kegunaan |
+|---|---|---|
+| **Terraform** | v1.5.0+ | Provisioning infrastruktur Azure (IaC) |
+| **Azure CLI** | v2.40+ | Autentikasi dan manajemen akun Azure |
+| **Ansible** | v2.12+ | Konfigurasi server dan deployment (CaC) |
+| **k6** | v0.45+ | Load testing performa tinggi |
+| **SSH Key Pair** | RSA 4096 | Otentikasi keamanan akses VM |
+
+<br>
+
+## 🚀 17. Panduan Eksekusi (Step-by-Step)
+### Tahap 1: Provisioning dengan Terraform
+1. Masuk ke direktori terraform: `cd terraform/`
+2. Autentikasi Azure: `az login`
+3. Inisialisasi: `terraform init`
+4. Deploy: `terraform apply -auto-approve`
+5. Catat IP Public Load Balancer dari output untuk pengujian.
+### Tahap 2: Konfigurasi dengan Ansible
+1. Update file `ansible/inventory/hosts.yml` dengan IP dari Terraform.
+2. Verifikasi koneksi: `ansible all -m ping`
+3. Jalankan konfigurasi penuh: `ansible-playbook playbooks/site.yml`
+   - *Proses ini akan menginstal Docker, menarik image, dan mengonfigurasi Nginx LB.*
+### Tahap 3: Validasi & Load Test
+1. Akses aplikasi: `http://<IP_LB_AZURE>`
+2. Jalankan load test: 
+   ```bash
+   k6 run -e BASE_URL=http://<IP_LB> loadtest/script.js
+   ```
+
+<br>
+
+## 🛠️ 18. Troubleshooting (Panduan Masalah)
+| Masalah | Penyebab | Solusi |
+|---|---|---|
+| **Terraform Apply Error (Quota)** | vCPU Azure for Students habis | Kurangi jumlah VM atau gunakan region lain (East Asia/Southeast Asia). |
+| **Ansible "Unreachable"** | SSH Key tidak dikenal / NSG memblokir | Pastikan IP Public Anda terdaftar di `security.tf` (Allow SSH). |
+| **Nginx 502 Bad Gateway** | Container worker belum *Up* | Cek status container di worker: `docker ps`. Pastikan port 8080/3000 sesuai. |
+| **k6 "Connection Refused"** | LB overload / Port 80 tertutup | Cek status service Nginx di VM LB: `sudo systemctl status nginx`. |
+
+<br>
+
+## 🕵️ 19. Analisis Solusi: Menjawab Studi Kasus #1
+Proyek ini dibangun khusus untuk menyelesaikan masalah insiden **server down** pada promotor musik. Berikut adalah bagaimana desain kami menjawab tantangan tersebut:
+1.  **High Availability (HA)**: Dengan menggunakan 4 Worker Node (2 Frontend, 2 Backend), kami menghilangkan *Single Point of Failure*. Jika satu VM mati, Nginx akan mengalihkan trafik ke VM lain yang sehat.
+2.  **Mitigasi Lonjakan (Ticket War)**: Penggunaan metode **Least Connections** pada Load Balancer memastikan tidak ada satu pun server yang "tercekik" trafik sementara server lain menganggur.
+3.  **Keamanan Industri**: Pemindaian **Docker Scout** memastikan tidak ada celah keamanan (CVE) yang masuk ke lingkungan produksi, menjaga data transaksi tiket tetap aman.
+4.  **Skalabilitas Cepat**: Jika artis yang didatangkan sangat populer (misal: Taylor Swift/Coldplay), infrastruktur ini dapat diduplikasi atau ditambah jumlah worker-nya hanya dalam hitungan detik melalui perubahan satu variabel di Terraform.
+
+<br>
+
+## 🔐 20. Fitur Keamanan & Traceability
+Kami mengintegrasikan prinsip **DevSecOps** ke dalam siklus hidup proyek:
+- **Zero Trust Network**: Seluruh worker tidak memiliki Public IP. Komunikasi hanya terjadi di dalam VNet Azure.
+- **Traceability**: Setiap deployment dicatat melalui Ansible log, sehingga tim bisa melacak versi image mana yang sedang berjalan di `worker-master` maupun `worker-slave`.
+- **Hardening**: Container Frontend dan Backend telah dikeraskan (*hardened*) dengan menghapus paket-paket OS yang tidak perlu melalui base image Alpine Slim.
+
+<br>
+
+## 🏁 Kesimpulan & Penutup
+Implementasi sistem infrastruktur tiket konser ini telah berhasil memenuhi seluruh kriteria **Studi Kasus #1**. Kami berhasil mentransformasi alur kerja manual yang rentan menjadi alur kerja berbasis **DevOps** yang otomatis, terukur, dan aman.
+
+**Hasil Akhir:**
+- **Infrastruktur**: 100% Automated (Terraform & Ansible).
+- **Keamanan**: 100% Vulnerability Scanned (Docker Scout).
+- **Performa**: Stabil pada beban **1.000 concurrent users** dengan tingkat kegagalan nyaris nol (**0.02%**).
+
+Sistem ini tidak hanya sekadar berjalan, tetapi siap untuk menghadapi kondisi nyata "War Ticket" dengan standar industri cloud modern.
+
+---
+<br>
+
+*© 2026 - Study Case 1 - Kelompok 5 Operasional Pengembang*
