@@ -76,26 +76,27 @@ output "networking_summary" {
 # ============================================================
 
 output "lb_public_ip" {
-  description = "IP publik VM Load Balancer — satu-satunya entry point dari internet"
+  description = "Public IP of the Load Balancer VM — main entry point"
   value       = azurerm_public_ip.lb.ip_address
 }
 
-output "frontend_private_ips" {
-  description = "IP private 2 VM Frontend Worker (akses via LB jump host)"
-  value       = azurerm_network_interface.frontend[*].private_ip_address
+output "frontend_private_ip" {
+  description = "Private IP of the Frontend VM"
+  value       = azurerm_network_interface.frontend[0].private_ip_address
 }
 
-output "backend_private_ips" {
-  description = "IP private 2 VM Backend Worker (akses via LB jump host)"
-  value       = azurerm_network_interface.backend[*].private_ip_address
+output "backend_private_ip" {
+  description = "Private IP of the Backend VM"
+  value       = azurerm_network_interface.backend[0].private_ip_address
 }
 
 output "vm_summary" {
-  description = "Ringkasan semua IP — berikan ke Anggota 5 untuk Ansible inventory"
+  description = "All VM IPs — provide to Ansible for inventory"
   value = {
-    lb_public_ip         = azurerm_public_ip.lb.ip_address
-    frontend_private_ips = azurerm_network_interface.frontend[*].private_ip_address
-    backend_private_ips  = azurerm_network_interface.backend[*].private_ip_address
-    ssh_note             = "Worker VMs hanya punya private IP. SSH via: ssh -J azureuser@<lb_public_ip> azureuser@<worker_private_ip>"
+    lb_public_ip        = azurerm_public_ip.lb.ip_address
+    frontend_private_ip = azurerm_network_interface.frontend[0].private_ip_address
+    backend_private_ip  = azurerm_network_interface.backend[0].private_ip_address
+    ssh_note            = "Worker VMs have private IPs only. SSH via: ssh -J azureuser@<lb_public_ip> azureuser@<worker_private_ip>"
   }
 }
+

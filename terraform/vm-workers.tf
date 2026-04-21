@@ -1,12 +1,12 @@
 # ============================================================
-# VM WORKERS — Anggota 4
-# 2 Frontend Workers + 2 Backend Workers
-# Hanya private IP — SSH akses via LB sebagai jump host
+# VM WORKERS
+# 1 Frontend Worker + 1 Backend Worker
+# Private IPs only — SSH access via LB jump host
 # ============================================================
 
-# ── Network Interface Frontend Workers ───────────────────────
+# ── Network Interface Frontend ────────────────────────────────
 resource "azurerm_network_interface" "frontend" {
-  count               = 2
+  count               = 1
   name                = "${var.project_name}-${var.environment}-frontend-nic-${count.index + 1}"
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
@@ -19,10 +19,10 @@ resource "azurerm_network_interface" "frontend" {
   }
 }
 
-# ── VM Frontend Workers ───────────────────────────────────────
+# ── VM Frontend ───────────────────────────────────────────────
 resource "azurerm_linux_virtual_machine" "frontend" {
-  count               = 2
-  name                = "${var.project_name}-${var.environment}-frontend-vm-${count.index + 1}"
+  count               = 1
+  name                = "${var.project_name}-${var.environment}-frontend-vm"
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
   size                = var.vm_size
@@ -52,9 +52,9 @@ resource "azurerm_linux_virtual_machine" "frontend" {
   })
 }
 
-# ── Network Interface Backend Workers ────────────────────────
+# ── Network Interface Backend ─────────────────────────────────
 resource "azurerm_network_interface" "backend" {
-  count               = 2
+  count               = 1
   name                = "${var.project_name}-${var.environment}-backend-nic-${count.index + 1}"
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
@@ -67,10 +67,10 @@ resource "azurerm_network_interface" "backend" {
   }
 }
 
-# ── VM Backend Workers ────────────────────────────────────────
+# ── VM Backend ────────────────────────────────────────────────
 resource "azurerm_linux_virtual_machine" "backend" {
-  count               = 2
-  name                = "${var.project_name}-${var.environment}-backend-vm-${count.index + 1}"
+  count               = 1
+  name                = "${var.project_name}-${var.environment}-backend-vm"
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
   size                = var.vm_size
