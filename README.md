@@ -33,36 +33,35 @@ Kami merancang ulang sistem menggunakan arsitektur **High Availability (HA)**. D
 Sistem ini dirancang untuk skalabilitas horizontal, menangani lonjakan trafik tinggi (ticket war) dengan pendekatan **load balancing + containerized services** di atas infrastruktur cloud Azure. Jika trafik meningkat, tim hanya perlu menambah jumlah Worker Node di skrip Terraform.
 
 ```
-                         ┌──────────────────────┐
-                         │        User          │
-                         │ (Web Browser / API)  │
-                         └──────────┬───────────┘
-                                    │ HTTP Request (Port 80)
-                                    ▼
-                         ┌──────────────────────┐
-                         │   Load Balancer VM   │
-                         │      (Nginx)         │
-                         │   Public IP: XX.X    │
-                         └──────────┬───────────┘
-                     ┌──────────────┼──────────────┐
-                     │ (Proxy Pass) │ (Proxy Pass) │
-                     ▼              ▼              ▼
-        ┌──────────────────────┐      ┌──────────────────────┐
-        │ Frontend Worker 1    │      │ Frontend Worker 2    │
-        │ Docker Container     │      │ Docker Container     │
-        │ Port: 8080           │      │ Port: 8080           │
-        └──────────────────────┘      └──────────────────────┘
+                      ┌──────────────────────────────┐
+                      │            User              │
+                      │    (Web Browser / Client)    │
+                      └──────────────┬───────────────┘
+                                     │ HTTP / HTTPS
+                                     ▼
+                ┌────────────────────────────────────────┐
+                │        Load Balancer (lb-01)           │
+                │     Public IP: 20.24.192.173           │
+                │       Nginx Reverse Proxy              │
+                └──────────────┬───────────────┬────────┘
+                               │               │
+                               ▼               ▼
 
-                     ┌──────────────┼──────────────┐
-                     │              │              │
-                     ▼              ▼              ▼
-        ┌──────────────────────┐      ┌──────────────────────┐
-        │ Backend Worker 1     │      │ Backend Worker 2     │
-        │ Docker Container     │      │ Docker Container     │
-        │ Port: 3000           │      │ Port: 3000           │
-        └──────────────────────┘      └──────────────────────┘
+    ┌──────────────────────────────┐   ┌──────────────────────────────┐
+    │        Worker Master         │   │        Worker Slave          │
+    │     Private IP: 10.0.1.5     │   │     Private IP: 10.0.1.4     │
+    │                              │   │                              │
+    │   ┌──────────────────────┐   │   │   ┌──────────────────────┐   │
+    │   │  Frontend Container  │   │   │   │  Frontend Container  │   │
+    │   │        :8080         │   │   │   │        :8080         │   │
+    │   └──────────────────────┘   │   │   └──────────────────────┘   │
+    │                              │   │                              │
+    │   ┌──────────────────────┐   │   │   ┌──────────────────────┐   │
+    │   │  Backend Container   │   │   │   │  Backend Container   │   │
+    │   │        :3000         │   │   │   │        :3000         │   │
+    │   └──────────────────────┘   │   │   └──────────────────────┘   │
+    └──────────────────────────────┘   └──────────────────────────────┘
 ```
-![Arsitektur Sistem](/docs/screenshots/image.png)
 ### Detil Komponen Infrastruktur Azure
 | Resource | Spesifikasi | Deskripsi |
 | :--- | :--- | :--- |
