@@ -185,7 +185,7 @@ services:
 <br>
 
 ## 🤖 8. Tahap 3: Configuration as Code (Ansible)
-Setelah infrastruktur jaringan dan VM berhasil diprovisioning oleh Terraform, tim menggunakan **Ansible** untuk melakukan konfigurasi otomatis secara massal pada ke-5 VM. Hal ini menjamin bahwa seluruh node memiliki konfigurasi software yang identik dan *reproducible*.
+Setelah infrastruktur jaringan dan VM berhasil diprovisioning oleh Terraform, tim menggunakan **Ansible** untuk melakukan konfigurasi otomatis secara massal pada seluruh VM. Hal ini menjamin bahwa seluruh node memiliki konfigurasi software yang identik dan *reproducible*.
 ### A. Strategi Manajemen Inventory
 Kami menggunakan struktur inventory yang terorganisir untuk membedakan antara node Load Balancer, Frontend, dan Backend. Hal ini memungkinkan Ansible menjalankan *task* yang berbeda secara spesifik pada setiap kelompok server.
 ```yaml
