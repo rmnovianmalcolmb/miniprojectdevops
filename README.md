@@ -248,9 +248,185 @@ server {
 }
 ```
 
+
 ## 🛡️ 10. Keamanan Akses: SSH ProxyJump (Bastion Host)
 Demi keamanan, 4 Worker VM kami tempatkan di **Private Subnet** tanpa IP Publik.
 1. **Bastion Host**: VM Load Balancer berfungsi sebagai gerbang masuk satu-satunya (Bastion Host).
 2. **Ansible Proxy**: Konfigurasi `ansible_ssh_common_args` menggunakan perintah `-o ProxyJump` untuk melompat dari LB ke server internal secara aman.
 3. **Dampak**: Peretas dari internet tidak dapat melakukan serangan *brute-force* SSH langsung ke server aplikasi kami.
 
+---
+
+## 🚀 11. Panduan Deployment dari Nol
+
+Panduan ini menjelaskan langkah lengkap untuk menjalankan seluruh infrastruktur dari awal hingga aplikasi dapat diakses.
+
+### Prerequisites
+
+Pastikan tools berikut sudah terinstall sebelum memulai:
+
+| Tool | Versi Minimum | Keterangan |
+|------|--------------|------------|
+| Azure CLI | >= 2.50 | `az --version` |
+| Terraform | >= 1.5 | `terraform --version` |
+| Ansible | >= 2.14 | `ansible --version` |
+| k6 | >= 0.50 | `k6 version` |
+
+Login ke Azure:
+```bash
+az login
+az account show  # pastikan subscription aktif
+```
+
+### Langkah 1 — Clone Repository
+
+```bash
+git clone https://github.com/rmnovianmalcolmb/miniprojectdevops.git
+cd miniprojectdevops
+```
+
+### Langkah 2 — Generate SSH Key
+
+SSH key dibutuhkan untuk akses ke VM. Buat key pair baru:
+
+```bash
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
+```
+
+Tampilkan public key untuk diisi ke konfigurasi Terraform:
+
+```bash
+cat ~/.ssh/id_rsa.pub
+```
+
+### Langkah 3 — Konfigurasi Terraform
+
+Salin template konfigurasi dan isi nilainya:
+
+```bash
+cd terraform/
+cp terraform.tfvars.example terraform.tfvars  # jika ada
+```
+
+Edit `terraform/terraform.tfvars`:
+
+```hcl
+project_name         = "concert-ticketing"
+environment          = "dev"
+location             = "eastasia"
+admin_ssh_public_key = "ssh-rsa AAAA..."  # isi dengan output cat ~/.ssh/id_rsa.pub
+admin_source_ip      = "*"               # ganti dengan IP kamu untuk keamanan
+```
+
+### Langkah 4 — Provisioning Infrastruktur (Terraform)
+
+```bash
+cd terraform/
+
+# Inisialisasi provider Azure
+terraform init
+
+# Preview resource yang akan dibuat
+terraform plan
+
+# Buat infrastruktur (estimasi waktu: 3-5 menit)
+terraform apply -auto-approve
+```
+
+Setelah selesai, catat output yang muncul:
+
+```bash
+terraform output vm_summary
+```
+
+Output berisi:
+- `lb_public_ip` — IP publik Load Balancer (entry point aplikasi)
+- `frontend_private_ip` — Private IP Worker Master
+- `backend_private_ip` — Private IP Worker Slave
+
+### Langkah 5 — Konfigurasi Ansible Inventory
+
+Update `ansible/inventory/hosts.yml` dengan IP dari output Terraform:
+
+```yaml
+all:
+  children:
+    loadbalancer:
+      hosts:
+        lb-01:
+          ansible_host: <lb_public_ip>   # ganti dengan output Terraform
+    workers:
+      hosts:
+        worker-master:
+          ansible_host: <frontend_private_ip>
+          ansible_ssh_common_args: '-o ProxyJump=azureuser@<lb_public_ip>'
+        worker-slave:
+          ansible_host: <backend_private_ip>
+          ansible_ssh_common_args: '-o ProxyJump=azureuser@<lb_public_ip>'
+```
+
+### Langkah 6 — Deploy Aplikasi (Ansible)
+
+Pindah ke direktori ansible dan test koneksi:
+
+```bash
+cd ../ansible/
+
+# Test koneksi ke semua VM
+ansible all -m ping -i inventory/hosts.yml
+```
+
+Semua VM harus reply `pong`. Jika berhasil, jalankan deployment:
+
+```bash
+# Deploy seluruh infrastruktur (estimasi waktu: 10-15 menit)
+ansible-playbook playbooks/site.yml -i inventory/hosts.yml
+```
+
+Playbook ini menjalankan 3 tahap secara berurutan:
+1. `install-docker.yml` — Install Docker Engine di semua worker
+2. `deploy-containers.yml` — Build & jalankan container Frontend + Backend
+3. `setup-loadbalancer.yml` — Install & konfigurasi Nginx Load Balancer
+
+### Langkah 7 — Verifikasi Deployment
+
+```bash
+# Cek container berjalan di semua worker
+ansible workers -m shell -a "docker ps" -i inventory/hosts.yml
+
+# Test akses frontend
+curl http://<lb_public_ip>/
+
+# Test backend API
+curl http://<lb_public_ip>/api/health
+
+# Test load balancing (kirim 10 request bersamaan)
+for i in 1 2 3 4 5 6 7 8 9 10; do curl -s http://<lb_public_ip>/api/health & done; wait
+```
+
+Aplikasi berhasil jika:
+- ✅ Frontend menampilkan halaman HTML tiket konser
+- ✅ Backend `/api/health` return `{"success":true,...}`
+- ✅ Concurrent curl menunjukkan 2 pola uptime berbeda (bukti load balancing)
+
+### Langkah 8 — Load Testing (k6)
+
+```bash
+cd ../
+
+# Jalankan load test 1000 concurrent users
+k6 run loadtest/script-1000.js
+```
+
+Threshold yang harus dipenuhi:
+- ✅ `p(95) < 500ms` — 95% request response time di bawah 500ms
+- ✅ `error rate < 1%` — Error rate di bawah 1%
+
+### Pembersihan Resource (Opsional)
+
+Untuk menghapus semua resource Azure dan menghindari biaya:
+
+```bash
+cd terraform/
+terraform destroy -auto-approve
+```
