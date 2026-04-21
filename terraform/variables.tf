@@ -7,7 +7,7 @@
 variable "location" {
   description = "Azure region tempat semua resource dibuat"
   type        = string
-  default     = "Southeast Asia"
+  default     = "eastasia"
 }
 
 variable "project_name" {
@@ -59,7 +59,7 @@ variable "admin_ssh_public_key" {
 variable "vm_size" {
   description = "Ukuran VM Azure (default Standard_B1s = paling murah)"
   type        = string
-  default     = "Standard_B1s"
+  default     = "Standard_B2as_v2"
 }
 
 # ── Tags ─────────────────────────────────────────────────────
